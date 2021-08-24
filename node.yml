@@ -1,0 +1,7 @@
+---
+- name: 部署node
+  hosts: node
+  roles:
+    - node
+  tags:
+    - node

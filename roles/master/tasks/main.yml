@@ -1,0 +1,108 @@
+---
+# tasks file for roles/master
+- name: 创建work dir
+  file:
+    path: '{{ k8s_work_dir }}/{{ item }}'
+    state: directory
+  with_items:
+    - bin
+    - cfg
+    - ssl
+    - log
+
+- name: 创建工具包
+  copy:
+    src: '{{ software }}/kubernetes/server/bin/{{ item }}'
+    dest: '{{ k8s_work_dir }}/bin/'
+  with_items:
+    - kube-apiserver
+    - kube-scheduler
+    - kube-controller-manager
+
+- name: 部署kubectl
+  copy:
+    src: '{{ software }}/kubernetes/server/bin/'
+    dest: /usr/bin/
+
+- name: 部署master组件所需配置文件
+  template:
+    src: '{{ item }}.j2'
+    dest: '{{ k8s_work_dir }}/cfg'
+  with_items:
+    - kube-apiserver.conf
+    - kube-controller-manager.conf
+    - kube-scheduler.conf
+    - kube-controller-manager.kubeconfig
+    - kube-scheduler.kubeconfig
+
+- name: copy证书
+  shell: cp -rf '{{ tls_dir }}/k8s/{{ item }}' '{{ k8s_work_dir}}/ssl/'
+  with_items:
+    - ca.pem
+    - ca-key.pem
+    - server.pem
+    - server-key.pem
+    - kube-controller-manager.pem
+    - kube-controller-manager-key.pem
+    - kube-scheduler.pem
+    - kube-scheduler-key.pem
+    - admin.pem
+    - admin-key.pem
+
+
+- name: 部署token文件
+  copy: 
+    src: token.csv
+    dest: '{{ k8s_work_dir }}/cfg/'
+
+
+- name: 创建master组件service文件
+  template: 
+    src: '{{ item }}.j2'
+    dest: '/usr/lib/systemd/system/'
+  with_items:
+    - kube-apiserver.service
+    - kube-controller-manager.service
+    - kube-scheduler.service
+
+- name: 部署systemd启动文件
+  systemd:
+    name: '{{ item }}'
+    state: started
+    daemon_reload: yes
+    enabled: yes
+  with_items:
+    - kube-apiserver
+    - kube-controller-manager
+    - kube-scheduler
+
+- name: 检查集群状态
+  shell: sleep 3 && kubectl get cs
+  register: cs
+- debug: var=cs.stdout.lines
+
+
+- name: 复制RBAC文件
+  copy: 
+    src: '{{ item }}'
+    dest: '{{ tmp_dir }}'
+  with_items:
+    - kubelet-bootstrap-rbac.yaml
+    - apiserver-to-kubelet-rbac.yaml
+
+- name: 授权APIServer访问Kubelet与授权kubelet bootstrap
+  shell: |
+      sleep 3
+      kubectl apply -f  {{ tmp_dir }}/apiserver-to-kubelet-rbac.yaml
+      kubectl apply -f {{ tmp_dir }}/kubelet-bootstrap-rbac.yaml
+
+
+- name: 自动审批Kubelet证书
+  ignore_errors: yes
+  shell: |
+    #自动批准首次申请证书的 CSR 请求
+     kubectl create clusterrolebinding node-client-auto-approve-csr --clusterrole=system:certificates.k8s.io:certificatesigningrequests:nodeclient --user=kubelet-bootstrap
+     # 自动批准kubelet客户端证书续签
+     kubectl create clusterrolebinding node-client-auto-renew-crt --clusterrole=system:certificates.k8s.io:certificatesigningrequests:selfnodeclient --group=system:nodes
+     # 自动批准kubelet服务端证书续签
+     kubectl create clusterrolebinding node-server-auto-renew-crt --clusterrole=system:certificates.k8s.io:certificatesigningrequests:selfnodeserver --group=system:nodes

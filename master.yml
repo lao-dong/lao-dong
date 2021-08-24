@@ -1,0 +1,8 @@
+---
+- name: 3.部署master
+  hosts: master
+  gather_facts: false
+  roles:
+    - master
+  tags:
+    - master

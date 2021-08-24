@@ -1,0 +1,58 @@
+---
+# tasks file for roles/tls
+#- name: 获取工作目录
+#  shell: pwd|sed 's#roles/tls##'
+#  register: root_dir
+
+- name: 创建工作目录
+  file:
+    path: '{{ tls_dir }}/{{ item }}'
+    state: directory
+  with_items:
+    - k8s
+    - etcd
+
+- name: 准备cfssl工具
+  unarchive:
+    src: '{{ software }}/tls.tar'
+    dest: /usr/bin/
+    mode: u+x
+
+- name: 创建etcd证书所需json文件
+  template: 
+    src: 'etcd/{{ item }}.j2'
+    dest: '{{ tls_dir }}/etcd/{{ item }}'
+  with_items:
+    - server-csr.json
+    - ca-config.json
+    - ca-csr.json
+
+- name: 生成etcd所需证书脚本
+  copy:
+    src: etcd_cert.sh
+    dest: '{{ tls_dir }}/etcd/etcd_cert.sh'
+    mode: u+x
+
+- name: 开始生成etcd证书
+  shell: cd '{{ tls_dir }}/etcd/' && /bin/bash etcd_cert.sh
+
+- name: 准备k8s所需证书json文件
+  template:
+    src: 'k8s/{{ item }}.j2'
+    dest: '{{ tls_dir }}/k8s/{{ item }}'
+  with_items:
+    - ca-config.json
+    - ca-csr.json
+    - server-csr.json
+    - admin-csr.json
+    - kube-proxy-csr.json
+    - kube-controller-manager-csr.json
+    - kube-scheduler-csr.json
+- name: 准备生成脚本
+  copy:
+    src: k8s_cert.sh
+    dest: '{{ tls_dir }}/k8s/'
+    mode: u+x
+
+- name: 生成k8s证书文件
+  shell: cd '{{ tls_dir}}/k8s/' && /bin/bash k8s_cert.sh 

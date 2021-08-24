@@ -1,0 +1,44 @@
+---
+# tasks file for roles/docker
+- name: 创建临时目录
+  file: 
+    path: '{{ tmp_dir }}'
+    state: directory
+
+- name: 复制并解压文件
+  unarchive: 
+    src: '{{ item }}'
+    dest: '{{ tmp_dir }}'
+  with_fileglob:
+    - '{{ software }}/docker-*.tgz'
+
+- name: 移动相关启动文件
+  shell: mv '{{ tmp_dir }}'/docker/* /usr/bin/
+
+- name: 配置systemd配置文件
+  copy:
+    src: docker.service
+    dest: /usr/lib/systemd/system/
+
+- name: 创建目录
+  file:
+    path: /etc/docker
+    state: directory
+
+- name: 复制docker.json
+  copy:
+    src: daemon.json
+    dest: /etc/docker/
+
+- name: 启动docker
+  systemd:
+    name: docker
+    state: restarted
+    enabled: yes
+    daemon_reload: yes
+
+- name: 判断docker
+  shell: docker info
+  register: docker
+- debug: var=docker.stdout_lines
+    

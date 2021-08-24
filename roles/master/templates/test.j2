@@ -1,0 +1,4 @@
+{% set local_ip=inventory_hostname %}
+local_ip = {{ local_ip }}
+
+{% for host in groups.etcd %}https://{{ hostvars[host].inventory_hostname }}:2379{% if not loop.last %},{% endif %}{% endfor %}

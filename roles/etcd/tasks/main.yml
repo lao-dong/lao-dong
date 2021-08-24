@@ -1,0 +1,59 @@
+---
+# tasks file for roles/etcd
+- name: 创建etcd工作目录
+  file:
+    path: '{{ etcd_dir }}/{{ item }}'
+    state: directory
+  with_items:
+    - bin
+    - cfg
+    - ssl
+- name: 创建临时目录
+  file:
+    path: '{{ tmp_dir }}'
+    state: directory
+
+
+- name: 分发并解压etcd二进制包
+  unarchive:
+    src: '{{ item }}'
+    dest: '{{ tmp_dir }}'
+  with_fileglob:
+    - '{{ software }}/etcd-*.tar.gz'
+
+- name: 移动etcd二进制文件
+  shell:  cp -rf '{{ tmp_dir }}/etcd-v*/{etcd,etcdctl}' '{{ etcd_dir }}/bin/'
+
+- name: 分发etcd配置文件
+  template: 
+    src: etcd.conf.j2
+    dest: '{{ etcd_dir }}/cfg/'
+
+- name: 分发systemd配置文件
+  template:
+    src: etcd.service.j2
+    dest: /usr/lib/systemd/system/
+
+- name: 证书配置
+  shell: cp -rf '{{ tls_dir }}/etcd/{ca*,server*}.pem' '{{ etcd_dir }}/ssl/'
+
+- name: 分发health检查脚本
+  template: 
+    src: etcd.sh.j2
+    dest: '{{ tmp_dir }}/'
+  
+- name: 启动etcd
+  systemd: 
+    name: etcd
+    daemon_reload: yes
+    state: started
+    enabled: yes
+    
+- name: 检查etcd
+  shell: /bin/bash '{{ tmp_dir }}/etcd.sh'
+  register: status
+- debug: 
+    var: status.stdout_lines
+
+
+

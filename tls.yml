@@ -1,0 +1,9 @@
+---
+- name: 2.创建tls
+  hosts: newnode
+  gather_facts: false
+  roles:
+    - tls
+  tags:
+    - tls
+

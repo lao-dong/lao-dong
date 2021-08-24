@@ -1,0 +1,8 @@
+---
+- name: etcd部署
+  hosts: etcd
+  gather_facts: false
+  roles:
+    - etcd
+  tags:
+    - etcd

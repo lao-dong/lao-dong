@@ -1,0 +1,28 @@
+---
+software: '/root/software'
+tmp_dir: '/tmp/k8s'
+k8s_work_dir: /opt/k8s
+tls_dir: /opt/tls
+etcd_dir: /opt/etcd
+
+service_cidr: 10.0.0.0/24
+cluster_dns: 10.0.0.2
+service_nodepod_range: 30000-32767
+pod_cidr: 10.244.0.0/16
+cluster_domain: cluster.local
+
+cert_hosts:
+  k8s:
+    - 192.168.137.50
+    - 192.168.137.51
+    - 192.168.137.52
+    - 192.168.137.53
+    - 192.168.137.54
+    - 192.168.137.55
+    - 192.168.137.56
+    - 192.168.137.57
+    - 192.168.137.58
+  etcd:
+    - 192.168.137.50
+    - 192.168.137.51
+    - 192.168.137.52

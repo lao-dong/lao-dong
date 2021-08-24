@@ -1,0 +1,68 @@
+---
+# tasks file for roles/node
+- name: 创建工作目录
+  file:
+    path: '{{ k8s_work_dir }}/{{ item }}'
+    state: directory
+  with_items:
+    - bin
+    - cfg
+    - ssl
+    - logs
+
+- name: 创建临时目录
+  file: 
+    path: '{{ tmp_dir }}'
+    state: directory
+ 
+
+- name: 分发并解压k8s二进制包
+  unarchive:
+    src: '{{ item }}'
+    dest: '{{ tmp_dir }}/'
+  with_fileglob:
+    - '{{ software }}/kubernetes-*.tar.gz'
+
+
+- name: 移动k8s二进制文件
+  shell: cp -rf '{{ tmp_dir }}/kubernetes/server/bin/{kubelet,kube-proxy}' '{{ k8s_work_dir }}/bin'
+
+- name: 分发证书
+  shell: cp -rf '{{ tls_dir }}/{{ item }}' '{{ k8s_work_dir }}/ssl/'
+  with_items:
+    - ca.pem
+    - kube-proxy.pem
+    - kube-proxy-key.pem
+
+- name: 分发node配置文件
+  template: 
+    src: '{{ item }}.j2'
+    dest: '{{ k8s_work_dir}}/cfg/'
+  with_items:
+    - bootstrap.kubeconfig
+    - kubelet.conf
+    - kubelet-config.yml
+    - kube-proxy.kubeconfig
+    - kube-proxy.conf
+    - kube-proxy-config.yml
+
+- name: 启动k8s node组件
+  systemd:
+    name: '{{ item }}'
+    state: started
+    daemon_reload: yes
+    enabled: yes
+  with_items:
+    - kubelet
+    - kube-proxy
+
+- name: 分发镜像
+  copy:
+    src: '{{ software }}/images.tar.gz'
+    dest: '{{ tmp_dir }}'
+
+- name: 导入镜像
+  shell: cd '{{ tmp_dir }}' && \
+         tar -zxvf image.tar.gz && \
+         for i in $(ls *.tar); do docker load -i $i;done
+         

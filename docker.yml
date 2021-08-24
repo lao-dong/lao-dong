@@ -1,0 +1,8 @@
+---
+- name: 1.部署docker
+  #gather_facts: false
+  hosts: newnode
+  roles:
+    - docker
+  tags:
+    - docker

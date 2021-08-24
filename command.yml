@@ -1,0 +1,8 @@
+---
+- name: 0.初始化系统
+  gather_facts: false
+  hosts: newnode
+  roles:
+    - command
+  tags:
+    - command
